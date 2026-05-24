@@ -1,0 +1,6 @@
+.gocache/
+dist/
+build/
+*.bin
+*.elf
+/main

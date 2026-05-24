@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ESP32-S3 配网</title>
+  <style>
+    body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:24px;line-height:1.45;background:#f7f7f4;color:#151515}
+    h2{margin:0 0 18px;font-size:22px}
+    label{display:block;margin:14px 0 6px;font-weight:600}
+    input{box-sizing:border-box;width:100%;font-size:16px;padding:11px;border:1px solid #b8b8b0;border-radius:6px;background:white}
+    button{margin-top:18px;width:100%;font-size:16px;padding:12px;background:#0b72e7;color:white;border:0;border-radius:6px}
+    .hint{color:#555;font-size:14px}
+    .panel{display:none;margin:12px 0;padding:12px;border-radius:6px;background:white;border:1px solid #d8d8d0}
+    .panel.active{display:block}
+    .ok{border-color:#6aa66a}
+    .err{border-color:#c46b5f}
+  </style>
+</head>
+<body>
+  <h2>ESP32-S3 配网</h2>
+
+  <section id="saved" class="panel ok">
+    已保存，设备正在尝试连接 WiFi。成功后 RGB 会变成绿色；如果失败，会回到蓝色配置状态。
+  </section>
+
+  <section id="error" class="panel err">
+    保存失败，WiFi 名称不能为空。
+  </section>
+
+  <form method="post" action="/save" onsubmit="saveLocal()">
+    <label>WiFi 名称</label>
+    <input id="ssid" name="ssid" required>
+
+    <label>WiFi 密码</label>
+    <input id="password" name="password" type="password">
+
+    <label>AI API Key</label>
+    <input id="apikey" name="apikey" type="password">
+
+    <button>保存并连接</button>
+  </form>
+
+  <p class="hint">绿灯表示已连接 WiFi，蓝灯表示配置热点模式。提交内容会保存到当前手机浏览器。</p>
+  <p class="hint">需要强制重新配网时，按住 BOOT 后复位，继续按住约 3 秒，设备会进入蓝灯热点模式。</p>
+
+  <script>
+    for (const k of ["ssid","password","apikey"]) {
+      const v = localStorage.getItem(k);
+      if (v) document.getElementById(k).value = v;
+    }
+
+    const status = new URLSearchParams(location.search).get("status");
+    if (status === "saved") document.getElementById("saved").classList.add("active");
+    if (status === "error") document.getElementById("error").classList.add("active");
+
+    function saveLocal() {
+      for (const k of ["ssid","password","apikey"]) {
+        localStorage.setItem(k, document.getElementById(k).value);
+      }
+    }
+  </script>
+</body>
+</html>
