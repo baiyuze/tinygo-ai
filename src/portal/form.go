@@ -14,6 +14,14 @@ func parseForm(body []byte) config.Credentials {
 	}
 }
 
+func parseAIText(body []byte) string {
+	text := formValue(body, "text", config.MaxAITextBytes)
+	if text != "" {
+		return text
+	}
+	return stringLimit(body, config.MaxAITextBytes)
+}
+
 func formValue(body []byte, key string, max int) string {
 	prefix := append([]byte(key), '=')
 	for len(body) > 0 {
@@ -25,7 +33,7 @@ func formValue(body []byte, key string, max int) string {
 			body = nil
 		}
 		if bytes.HasPrefix(part, prefix) {
-			var out [config.MaxAPIKeyBytes]byte
+			var out [config.MaxFormValueBytes]byte
 			if max > len(out) {
 				max = len(out)
 			}
@@ -37,6 +45,13 @@ func formValue(body []byte, key string, max int) string {
 		}
 	}
 	return ""
+}
+
+func stringLimit(body []byte, max int) string {
+	if len(body) > max {
+		body = body[:max]
+	}
+	return string(body)
 }
 
 func urlDecode(dst, src []byte) int {

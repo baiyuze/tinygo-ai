@@ -12,9 +12,11 @@ const (
 
 	PollTime = 5 * time.Millisecond
 
-	MaxSSIDBytes     = 96
-	MaxPasswordBytes = 128
-	MaxAPIKeyBytes   = 1024
+	MaxSSIDBytes      = 96
+	MaxPasswordBytes  = 128
+	MaxAPIKeyBytes    = 1024
+	MaxAITextBytes    = 4096
+	MaxFormValueBytes = 4096
 )
 
 type Credentials struct {

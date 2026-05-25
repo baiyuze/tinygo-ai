@@ -16,6 +16,7 @@ import (
 
 	"esp32s3-demo/src/config"
 	"esp32s3-demo/src/diag"
+	"esp32s3-demo/src/display"
 	"esp32s3-demo/src/portal"
 	"esp32s3-demo/src/rgb"
 	"esp32s3-demo/src/store"
@@ -129,7 +130,7 @@ func connectSTA(cfg config.Credentials) bool {
 	}
 	lstack.SetGateway6(gatewayHW)
 
-	go portal.Serve(lstack, dhcp.AssignedAddr, savePending)
+	go portal.Serve(lstack, dhcp.AssignedAddr, savePending, showAIText)
 	rgb.WiFiConnected()
 
 	for {
@@ -199,7 +200,7 @@ func startSetupAP() {
 	}
 
 	go pollStack(stack)
-	go portal.Serve(stack.LnetoStack(), addr, savePending)
+	go portal.Serve(stack.LnetoStack(), addr, savePending, showAIText)
 
 	diag.Log("setup portal ready")
 	diag.Log("connect phone to:", config.SetupSSID)
@@ -233,6 +234,11 @@ func savePending(cfg config.Credentials) {
 	if cfg.APIKey != "" {
 		diag.APIKeyReceived(true)
 	}
+}
+
+func showAIText(text string) {
+	diag.Log("AI text received")
+	display.RenderAIText(text)
 }
 
 func pollStack(stack *espradio.Stack) {

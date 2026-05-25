@@ -17,7 +17,7 @@ import (
 //go:embed resources/setup.html
 var setupHTML string
 
-func Serve(stack *xnet.StackAsync, listenIP netip.Addr, onSave func(config.Credentials)) {
+func Serve(stack *xnet.StackAsync, listenIP netip.Addr, onSave func(config.Credentials), onAIText func(string)) {
 	tcpPool, err := xnet.NewTCPPool(xnet.TCPPoolConfig{
 		PoolSize:           2,
 		QueueSize:          2,
@@ -56,7 +56,7 @@ func Serve(stack *xnet.StackAsync, listenIP netip.Addr, onSave func(config.Crede
 			diag.Error("accept: " + err.Error())
 			continue
 		}
-		handleConn(conn, userData.(*connState), onSave)
+		handleConn(conn, userData.(*connState), onSave, onAIText)
 	}
 }
 
@@ -67,7 +67,7 @@ type connState struct {
 	hdr  httpraw.Header
 }
 
-func handleConn(conn *tcp.Conn, cs *connState, onSave func(config.Credentials)) {
+func handleConn(conn *tcp.Conn, cs *connState, onSave func(config.Credentials), onAIText func(string)) {
 	defer conn.Close()
 	conn.SetDeadline(time.Now().Add(8 * time.Second))
 
@@ -94,6 +94,19 @@ func handleConn(conn *tcp.Conn, cs *connState, onSave func(config.Credentials)) 
 		}
 		onSave(cfg)
 		writeRedirect(conn, cs.resp[:0], "/?status=saved")
+		return
+	}
+
+	if bytes.Equal(method, []byte("POST")) && bytes.HasPrefix(uri, []byte("/ai")) {
+		text := parseAIText(body)
+		if text == "" {
+			writeText(conn, cs.resp[:0], 400, "missing text\n")
+			return
+		}
+		if onAIText != nil {
+			onAIText(text)
+		}
+		writeText(conn, cs.resp[:0], 200, "ok\n")
 		return
 	}
 
@@ -165,6 +178,24 @@ func writeRedirect(conn *tcp.Conn, buf []byte, location string) {
 	resp = append(resp, "Location: "...)
 	resp = append(resp, location...)
 	resp = append(resp, "\r\nConnection: close\r\nContent-Length: 0\r\n\r\n"...)
+	conn.Write(resp)
+	conn.Flush()
+}
+
+func writeText(conn *tcp.Conn, buf []byte, status int, body string) {
+	reason := "OK"
+	if status == 400 {
+		reason = "Bad Request"
+	}
+	resp := append(buf[:0], "HTTP/1.1 "...)
+	resp = strconv.AppendInt(resp, int64(status), 10)
+	resp = append(resp, ' ')
+	resp = append(resp, reason...)
+	resp = append(resp, "\r\nContent-Type: text/plain; charset=utf-8\r\n"...)
+	resp = append(resp, "Connection: close\r\nContent-Length: "...)
+	resp = strconv.AppendInt(resp, int64(len(body)), 10)
+	resp = append(resp, "\r\n\r\n"...)
+	resp = append(resp, body...)
 	conn.Write(resp)
 	conn.Flush()
 }

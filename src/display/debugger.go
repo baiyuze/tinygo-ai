@@ -34,6 +34,9 @@ func RenderDebugger() {
 	if !ready {
 		return
 	}
+	if aiScreenActive() {
+		return
+	}
 
 	state, count := diag.Snapshot(logLines[:])
 
