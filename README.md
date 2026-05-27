@@ -81,6 +81,8 @@ main.go
 | BOOT 强制配网 | GPIO0 |
 | RGB 状态灯 | GPIO48 |
 
+更完整的接线、代码对应关系和排查清单见 [ESP32-S3 当前接线与引脚说明](docs/hardware-pinout.md)。
+
 ## 所需内容
 
 开发环境：
