@@ -100,11 +100,11 @@ Go 依赖已经记录在 `go.mod`：
 
 ## 构建与烧录
 
-本机需要先安装 TinyGo。当前环境未检测到 `tinygo` 命令，因此下面是建议命令，需要按你的开发板和串口名调整：
+本机需要先安装 TinyGo。当前环境未检测到 `tinygo` 命令，因此下面是当前硬件的建议命令，需要按你的开发板 target 和串口名调整：
 
 ```bash
 go mod download
-tinygo flash -target=esp32s3 -port=/dev/tty.usbmodemXXXX .
+tinygo flash -target=ESP32-S3-generetor -port=/dev/tty.usbmodemXXXX .
 ```
 
 查看串口日志：
@@ -113,7 +113,7 @@ tinygo flash -target=esp32s3 -port=/dev/tty.usbmodemXXXX .
 screen /dev/tty.usbmodemXXXX 115200
 ```
 
-如果你的 TinyGo 版本使用了更具体的 ESP32-S3 target 名称，请用 `tinygo targets | grep esp32` 查看后替换。
+`-target` 必须使用当前硬件对应的 TinyGo target；本项目当前使用 `ESP32-S3-generetor`。如果你的串口名不同，请用实际设备路径替换 `/dev/tty.usbmodemXXXX`。
 
 ## 使用方式
 
