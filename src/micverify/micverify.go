@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	Enabled = true
+	Enabled = false
 
 	SCKPin = machine.GPIO6
 	WSPin  = machine.GPIO5

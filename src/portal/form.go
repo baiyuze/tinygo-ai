@@ -8,9 +8,10 @@ import (
 
 func parseForm(body []byte) config.Credentials {
 	return config.Credentials{
-		SSID:     formValue(body, "ssid", config.MaxSSIDBytes),
-		Password: formValue(body, "password", config.MaxPasswordBytes),
-		APIKey:   formValue(body, "apikey", config.MaxAPIKeyBytes),
+		SSID:         formValue(body, "ssid", config.MaxSSIDBytes),
+		Password:     formValue(body, "password", config.MaxPasswordBytes),
+		APIKey:       formValue(body, "apikey", config.MaxAPIKeyBytes),
+		SystemPrompt: formValue(body, "systemprompt", config.MaxSystemPromptBytes),
 	}
 }
 

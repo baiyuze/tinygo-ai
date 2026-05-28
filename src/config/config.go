@@ -12,13 +12,15 @@ const (
 
 	PollTime = 5 * time.Millisecond
 
-	MaxSSIDBytes     = 96
-	MaxPasswordBytes = 128
-	MaxAPIKeyBytes   = 1024
+	MaxSSIDBytes         = 96
+	MaxPasswordBytes     = 128
+	MaxAPIKeyBytes       = 1024
+	MaxSystemPromptBytes = 1024
 )
 
 type Credentials struct {
-	SSID     string
-	Password string
-	APIKey   string
+	SSID         string
+	Password     string
+	APIKey       string
+	SystemPrompt string
 }

@@ -46,9 +46,10 @@ const (
 	magic1  = 'G'
 	magic2  = 'A'
 	magic3  = 'I'
-	version = 1
+	version = 2
 
-	headerSize = 16
+	headerSizeV1 = 16
+	headerSize   = 20
 )
 
 type storeError string
@@ -79,7 +80,7 @@ func Load() (config.Credentials, bool, error) {
 		setStatus(false, nil)
 		return config.Credentials{}, false, nil
 	}
-	if !validMagic(buf) || buf[4] != version {
+	if !validMagic(buf) || (buf[4] != 1 && buf[4] != version) {
 		err := storeError("store record invalid")
 		setStatus(false, err)
 		return config.Credentials{}, false, err
@@ -88,23 +89,32 @@ func Load() (config.Credentials, bool, error) {
 	ssidLen := get16(buf, 6)
 	passLen := get16(buf, 8)
 	keyLen := get16(buf, 10)
-	total := headerSize + int(ssidLen) + int(passLen) + int(keyLen)
-	if ssidLen == 0 || ssidLen > config.MaxSSIDBytes || passLen > config.MaxPasswordBytes || keyLen > config.MaxAPIKeyBytes || total > sectorSize {
+	promptLen := uint16(0)
+	headerSizeForRecord := headerSizeV1
+	checksumOffset := 12
+	if buf[4] == version {
+		promptLen = get16(buf, 12)
+		headerSizeForRecord = headerSize
+		checksumOffset = 16
+	}
+	total := headerSizeForRecord + int(ssidLen) + int(passLen) + int(keyLen) + int(promptLen)
+	if ssidLen == 0 || ssidLen > config.MaxSSIDBytes || passLen > config.MaxPasswordBytes || keyLen > config.MaxAPIKeyBytes || promptLen > config.MaxSystemPromptBytes || total > sectorSize {
 		err := storeError("store record length invalid")
 		setStatus(false, err)
 		return config.Credentials{}, false, err
 	}
-	if get32(buf, 12) != checksum(buf[:12], buf[headerSize:total]) {
+	if get32(buf, checksumOffset) != checksum(buf[:checksumOffset], buf[headerSizeForRecord:total]) {
 		err := storeError("store checksum invalid")
 		setStatus(false, err)
 		return config.Credentials{}, false, err
 	}
 
-	pos := headerSize
+	pos := headerSizeForRecord
 	cfg := config.Credentials{
-		SSID:     string(buf[pos : pos+int(ssidLen)]),
-		Password: string(buf[pos+int(ssidLen) : pos+int(ssidLen)+int(passLen)]),
-		APIKey:   string(buf[pos+int(ssidLen)+int(passLen) : total]),
+		SSID:         string(buf[pos : pos+int(ssidLen)]),
+		Password:     string(buf[pos+int(ssidLen) : pos+int(ssidLen)+int(passLen)]),
+		APIKey:       string(buf[pos+int(ssidLen)+int(passLen) : pos+int(ssidLen)+int(passLen)+int(keyLen)]),
+		SystemPrompt: string(buf[pos+int(ssidLen)+int(passLen)+int(keyLen) : total]),
 	}
 	setStatus(true, nil)
 	return cfg, true, nil
@@ -123,6 +133,9 @@ func Save(cfg config.Credentials) error {
 	if len(cfg.APIKey) > config.MaxAPIKeyBytes {
 		return setStatus(true, storeError("api key too long"))
 	}
+	if len(cfg.SystemPrompt) > config.MaxSystemPromptBytes {
+		return setStatus(true, storeError("system prompt too long"))
+	}
 
 	offset, err := storageOffset()
 	if err != nil {
@@ -139,12 +152,14 @@ func Save(cfg config.Credentials) error {
 	put16(buf, 6, uint16(len(cfg.SSID)))
 	put16(buf, 8, uint16(len(cfg.Password)))
 	put16(buf, 10, uint16(len(cfg.APIKey)))
+	put16(buf, 12, uint16(len(cfg.SystemPrompt)))
 
 	pos := headerSize
 	pos += copy(buf[pos:], cfg.SSID)
 	pos += copy(buf[pos:], cfg.Password)
 	pos += copy(buf[pos:], cfg.APIKey)
-	put32(buf, 12, checksum(buf[:12], buf[headerSize:pos]))
+	pos += copy(buf[pos:], cfg.SystemPrompt)
+	put32(buf, 16, checksum(buf[:16], buf[headerSize:pos]))
 
 	if err := writeSector(offset, &words); err != nil {
 		return setStatus(true, err)

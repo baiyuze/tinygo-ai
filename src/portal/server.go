@@ -9,6 +9,7 @@ import (
 
 	"esp32s3-demo/src/config"
 	"esp32s3-demo/src/diag"
+	"esp32s3-demo/src/store"
 	"github.com/soypat/lneto/http/httpraw"
 	"github.com/soypat/lneto/tcp"
 	"github.com/soypat/lneto/x/xnet"
@@ -61,8 +62,8 @@ func Serve(stack *xnet.StackAsync, listenIP netip.Addr, onSave func(config.Crede
 }
 
 type connState struct {
-	req  [8192]byte
-	resp [6144]byte
+	req  [12288]byte
+	resp [12288]byte
 	body [4096]byte
 	hdr  httpraw.Header
 }
@@ -85,6 +86,10 @@ func handleConn(conn *tcp.Conn, cs *connState, onSave func(config.Credentials)) 
 		writeHTMLBytes(conn, cs.resp[:0], debugBody)
 		return
 	}
+	if bytes.HasPrefix(uri, []byte("/config.json")) {
+		writeJSONBytes(conn, cs.resp[:0], appendConfigJSON(cs.body[:0]))
+		return
+	}
 
 	if bytes.Equal(method, []byte("POST")) && bytes.HasPrefix(uri, []byte("/save")) {
 		cfg := parseForm(body)
@@ -98,6 +103,44 @@ func handleConn(conn *tcp.Conn, cs *connState, onSave func(config.Credentials)) 
 	}
 
 	writeHTML(conn, cs.resp[:0], setupHTML)
+}
+
+func appendConfigJSON(dst []byte) []byte {
+	cfg, ok, _ := store.Load()
+	dst = append(dst, "{\"hasConfig\":"...)
+	if ok {
+		dst = append(dst, "true"...)
+	} else {
+		dst = append(dst, "false"...)
+	}
+	dst = append(dst, ",\"apiKey\":"...)
+	dst = appendJSONString(dst, cfg.APIKey)
+	dst = append(dst, ",\"systemPrompt\":"...)
+	dst = appendJSONString(dst, cfg.SystemPrompt)
+	dst = append(dst, "}"...)
+	return dst
+}
+
+func appendJSONString(dst []byte, s string) []byte {
+	dst = append(dst, '"')
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '\\', '"':
+			dst = append(dst, '\\', s[i])
+		case '\n':
+			dst = append(dst, '\\', 'n')
+		case '\r':
+			dst = append(dst, '\\', 'r')
+		case '\t':
+			dst = append(dst, '\\', 't')
+		default:
+			if s[i] >= 0x20 {
+				dst = append(dst, s[i])
+			}
+		}
+	}
+	dst = append(dst, '"')
+	return dst
 }
 
 func readRequest(conn *tcp.Conn, cs *connState) []byte {
@@ -151,6 +194,19 @@ func writeHTML(conn *tcp.Conn, buf []byte, body string) {
 func writeHTMLBytes(conn *tcp.Conn, buf []byte, body []byte) {
 	resp := append(buf[:0], "HTTP/1.1 200 OK\r\n"...)
 	resp = append(resp, "Content-Type: text/html; charset=utf-8\r\n"...)
+	resp = append(resp, "Connection: close\r\n"...)
+	resp = append(resp, "Content-Length: "...)
+	resp = strconv.AppendInt(resp, int64(len(body)), 10)
+	resp = append(resp, "\r\n\r\n"...)
+	resp = append(resp, body...)
+	conn.Write(resp)
+	conn.Flush()
+}
+
+func writeJSONBytes(conn *tcp.Conn, buf []byte, body []byte) {
+	resp := append(buf[:0], "HTTP/1.1 200 OK\r\n"...)
+	resp = append(resp, "Content-Type: application/json; charset=utf-8\r\n"...)
+	resp = append(resp, "Cache-Control: no-store\r\n"...)
 	resp = append(resp, "Connection: close\r\n"...)
 	resp = append(resp, "Content-Length: "...)
 	resp = strconv.AppendInt(resp, int64(len(body)), 10)
