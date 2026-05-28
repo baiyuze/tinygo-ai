@@ -7,6 +7,7 @@ import (
 	"esp32s3-demo/src/boot"
 	"esp32s3-demo/src/diag"
 	"esp32s3-demo/src/display"
+	"esp32s3-demo/src/micverify"
 	"esp32s3-demo/src/rgb"
 	"esp32s3-demo/src/wifi"
 	"tinygo.org/x/espradio"
@@ -17,6 +18,13 @@ func Run() {
 	time.Sleep(time.Second)
 
 	diag.Log("boot")
+	if micverify.Enabled {
+		rgb.Setup()
+		display.Setup()
+		micverify.Run()
+		return
+	}
+
 	diag.Log("enabling radio")
 	if err := espradio.Enable(espradio.Config{Logging: espradio.LogLevelError}); err != nil {
 		diag.Error("radio enable failed: " + err.Error())
